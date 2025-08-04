@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
+const InvoiceForm = React.memo(({ invoice, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     invoiceNumber: invoice?.invoiceNumber || '',
     customerName: invoice?.customerName || '',
@@ -16,7 +16,7 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
 
   const [errors, setErrors] = useState({});
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -30,9 +30,9 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
         [name]: ''
       }));
     }
-  };
+  }, [errors]);
 
-  const handleItemChange = (index, field, value) => {
+  const handleItemChange = useCallback((index, field, value) => {
     const updatedItems = formData.items.map((item, i) => 
       i === index ? { ...item, [field]: value } : item
     );
@@ -40,7 +40,7 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
       ...prev,
       items: updatedItems
     }));
-  };
+  }, [formData.items]);
 
   const addItem = () => {
     setFormData(prev => ({
@@ -58,28 +58,25 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
     }
   };
 
-  const calculateSubtotal = () => {
+  const calculateSubtotal = useMemo(() => {
     return formData.items.reduce((sum, item) => {
       // Fixed: Handle invalid numbers properly
       const quantity = parseFloat(item.quantity) || 0;
       const price = parseFloat(item.price) || 0;
       return sum + (quantity * price);
     }, 0);
-  };
+  }, [formData.items]);
 
-  const calculateTax = () => {
-    const subtotal = calculateSubtotal();
+  const calculateTax = useMemo(() => {
     // Fixed: Handle floating point precision issues
     const taxRate = parseFloat(formData.tax) || 0;
-    return Math.round((subtotal * taxRate) / 100 * 100) / 100;
-  };
+    return Math.round((calculateSubtotal * taxRate) / 100 * 100) / 100;
+  }, [calculateSubtotal, formData.tax]);
 
-  const calculateTotal = () => {
-    const subtotal = calculateSubtotal();
-    const tax = calculateTax();
+  const calculateTotal = useMemo(() => {
     // Fixed: Round the total to avoid floating point precision issues
-    return Math.round((subtotal + tax) * 100) / 100;
-  };
+    return Math.round((calculateSubtotal + calculateTax) * 100) / 100;
+  }, [calculateSubtotal, calculateTax]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -128,15 +125,15 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      const invoiceData = {
-        ...formData,
-        subtotal: calculateSubtotal(),
-        taxAmount: calculateTax(),
-        total: calculateTotal()
-      };
-      onSubmit(invoiceData);
-    }
+          if (validateForm()) {
+        const invoiceData = {
+          ...formData,
+          subtotal: calculateSubtotal,
+          taxAmount: calculateTax,
+          total: calculateTotal
+        };
+        onSubmit(invoiceData);
+      }
   };
 
   return (
@@ -304,9 +301,9 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
       </div>
 
       <div className="invoice-summary">
-        <div>Subtotal: ${calculateSubtotal().toFixed(2)}</div>
-        <div>Tax ({formData.tax}%): ${calculateTax().toFixed(2)}</div>
-        <div className="total">Total: ${calculateTotal().toFixed(2)}</div>
+        <div>Subtotal: ${calculateSubtotal.toFixed(2)}</div>
+        <div>Tax ({formData.tax}%): ${calculateTax.toFixed(2)}</div>
+        <div className="total">Total: ${calculateTotal.toFixed(2)}</div>
       </div>
 
       <div style={{ marginTop: '2rem' }}>
@@ -319,6 +316,6 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel }) => {
       </div>
     </form>
   );
-};
+});
 
 export default InvoiceForm;

@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 
-const InvoiceList = ({ invoices, onSelect, onDelete }) => {
+const InvoiceList = React.memo(({ invoices, onSelect, onDelete }) => {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const handleSort = (field) => {
+  const handleSort = useCallback((field) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(field);
       setSortOrder('asc');
     }
-  };
+  }, [sortBy, sortOrder]);
 
-  const filteredAndSortedInvoices = invoices
+  const filteredAndSortedInvoices = useMemo(() => invoices
     .filter(invoice => {
       if (filterStatus === 'all') return true;
       return invoice.status === filterStatus;
@@ -39,7 +39,7 @@ const InvoiceList = ({ invoices, onSelect, onDelete }) => {
       } else {
         return aValue < bValue ? 1 : -1;
       }
-    });
+    }), [invoices, filterStatus, sortBy, sortOrder]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -65,12 +65,12 @@ const InvoiceList = ({ invoices, onSelect, onDelete }) => {
     }
   };
 
-  const handleDelete = (e, id) => {
+  const handleDelete = useCallback((e, id) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this invoice?')) {
       onDelete(id);
     }
-  };
+  }, [onDelete]);
 
   return (
     <div className="invoice-list">
@@ -201,6 +201,6 @@ const InvoiceList = ({ invoices, onSelect, onDelete }) => {
       )}
     </div>
   );
-};
+});
 
 export default InvoiceList;
