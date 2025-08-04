@@ -5,6 +5,8 @@ const InvoiceList = React.memo(({ invoices, onSelect, onDelete }) => {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   const handleSort = useCallback((field) => {
     if (sortBy === field) {
@@ -17,8 +19,33 @@ const InvoiceList = React.memo(({ invoices, onSelect, onDelete }) => {
 
   const filteredAndSortedInvoices = useMemo(() => invoices
     .filter(invoice => {
-      if (filterStatus === 'all') return true;
-      return invoice.status === filterStatus;
+      // Status filter
+      if (filterStatus !== 'all' && invoice.status !== filterStatus) {
+        return false;
+      }
+      
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = 
+          invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
+          invoice.customerName.toLowerCase().includes(searchLower) ||
+          invoice.customerEmail.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Date range filter
+      if (dateRange.start || dateRange.end) {
+        const invoiceDate = new Date(invoice.createdAt);
+        if (dateRange.start && invoiceDate < new Date(dateRange.start)) {
+          return false;
+        }
+        if (dateRange.end && invoiceDate > new Date(dateRange.end)) {
+          return false;
+        }
+      }
+      
+      return true;
     })
     .sort((a, b) => {
       let aValue = a[sortBy];
@@ -39,7 +66,7 @@ const InvoiceList = React.memo(({ invoices, onSelect, onDelete }) => {
       } else {
         return aValue < bValue ? 1 : -1;
       }
-    }), [invoices, filterStatus, sortBy, sortOrder]);
+          }), [invoices, filterStatus, searchTerm, dateRange, sortBy, sortOrder]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -67,33 +94,128 @@ const InvoiceList = React.memo(({ invoices, onSelect, onDelete }) => {
 
   const handleDelete = useCallback((e, id) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      onDelete(id);
-    }
+    onDelete(id);
   }, [onDelete]);
 
   return (
     <div className="invoice-list">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2>Invoice List ({filteredAndSortedInvoices.length})</h2>
+      <div style={{ marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2>Invoice List ({filteredAndSortedInvoices.length})</h2>
+        </div>
         
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        {/* Enhanced Filters */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '1rem', 
+          marginBottom: '1rem',
+          padding: '1rem',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
           <div>
-            <label htmlFor="statusFilter" style={{ marginRight: '0.5rem' }}>Filter by Status:</label>
+            <label htmlFor="searchInput" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              Search Invoices:
+            </label>
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="Invoice #, Customer name, or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ 
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px'
+              }}
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="statusFilter" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              Status:
+            </label>
             <select 
               id="statusFilter"
               value={filterStatus} 
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: '0.25rem' }}
+              style={{ 
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px'
+              }}
             >
-              <option value="all">All</option>
+              <option value="all">All Statuses</option>
               <option value="draft">Draft</option>
               <option value="sent">Sent</option>
               <option value="paid">Paid</option>
               <option value="overdue">Overdue</option>
             </select>
           </div>
+          
+          <div>
+            <label htmlFor="dateStart" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              From Date:
+            </label>
+            <input
+              id="dateStart"
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              style={{ 
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px'
+              }}
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="dateEnd" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              To Date:
+            </label>
+            <input
+              id="dateEnd"
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              style={{ 
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px'
+              }}
+            />
+          </div>
         </div>
+        
+        {/* Clear Filters Button */}
+        {(searchTerm || filterStatus !== 'all' || dateRange.start || dateRange.end) && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterStatus('all');
+                setDateRange({ start: '', end: '' });
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.875rem'
+              }}
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
       </div>
 
       {filteredAndSortedInvoices.length === 0 ? (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 // Custom hook for invoice management with improved error handling and performance
-export const useInvoices = () => {
+export const useInvoices = (showToast) => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -49,15 +49,17 @@ export const useInvoices = () => {
       };
       
       setInvoices(prevInvoices => [...prevInvoices, newInvoice]);
+      showToast?.showSuccess('Invoice created successfully!');
       return { success: true, invoice: newInvoice };
     } catch (err) {
       setError('Failed to create invoice');
+      showToast?.showError('Failed to create invoice');
       console.error('Error creating invoice:', err);
       return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   // Update invoice
   const updateInvoice = useCallback((id, updatedData) => {
@@ -70,15 +72,17 @@ export const useInvoices = () => {
           invoice.id === id ? { ...invoice, ...updatedData } : invoice
         )
       );
+      showToast?.showSuccess('Invoice updated successfully!');
       return { success: true };
     } catch (err) {
       setError('Failed to update invoice');
+      showToast?.showError('Failed to update invoice');
       console.error('Error updating invoice:', err);
       return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   // Delete invoice
   const deleteInvoice = useCallback((id) => {
@@ -89,15 +93,17 @@ export const useInvoices = () => {
       setInvoices(prevInvoices => 
         prevInvoices.filter(invoice => invoice.id !== id)
       );
+      showToast?.showSuccess('Invoice deleted successfully!');
       return { success: true };
     } catch (err) {
       setError('Failed to delete invoice');
+      showToast?.showError('Failed to delete invoice');
       console.error('Error deleting invoice:', err);
       return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   // Export invoices
   const exportInvoices = useCallback(() => {
@@ -114,13 +120,15 @@ export const useInvoices = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
+      showToast?.showSuccess(`Exported ${invoices.length} invoices successfully!`);
       return { success: true };
     } catch (err) {
       setError('Failed to export invoices');
+      showToast?.showError('Failed to export invoices');
       console.error('Error exporting invoices:', err);
       return { success: false, error: err.message };
     }
-  }, [invoices]);
+  }, [invoices, showToast]);
 
   // Import invoices
   const importInvoices = useCallback((file) => {
@@ -135,12 +143,14 @@ export const useInvoices = () => {
           const importedData = JSON.parse(e.target.result);
           if (Array.isArray(importedData)) {
             setInvoices(importedData);
+            showToast?.showSuccess(`Imported ${importedData.length} invoices successfully!`);
             resolve({ success: true, count: importedData.length });
           } else {
             throw new Error('Invalid file format');
           }
         } catch (err) {
           setError('Failed to import invoices');
+          showToast?.showError('Failed to import invoices. Please check the file format.');
           console.error('Error importing invoices:', err);
           resolve({ success: false, error: err.message });
         } finally {
@@ -150,13 +160,14 @@ export const useInvoices = () => {
       
       reader.onerror = () => {
         setError('Failed to read file');
+        showToast?.showError('Failed to read file');
         setLoading(false);
         resolve({ success: false, error: 'Failed to read file' });
       };
       
       reader.readAsText(file);
     });
-  }, []);
+  }, [showToast]);
 
   // Clear error
   const clearError = useCallback(() => {
